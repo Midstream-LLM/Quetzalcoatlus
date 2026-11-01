@@ -19,6 +19,7 @@ public:
 private:
     std::string executable_name;
     std::string model_file_path;
+    std::string system_prompt = "";
     mode run_mode = mode::unknown;
     float temperature = 0.8f;
     float repetition_penalty = 1.15f;
@@ -68,6 +69,9 @@ public:
     void logo(std::ostream& os) const;
     const std::string& get_model_file_path() const {
         return model_file_path;
+    }
+    const std::string& get_system_prompt() const {
+        return system_prompt;
     }
     bool is_chat_mode() const {
         return run_mode == mode::chat;

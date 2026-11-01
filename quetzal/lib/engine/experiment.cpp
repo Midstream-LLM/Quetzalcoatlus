@@ -86,7 +86,13 @@ void experiment_mode(const util::cli& cli) {
     std::mt19937_64 gen(42);
 
     util::message_manager mm(tokenizer);
-    mm.push("system", "你是一个聊天助手，请自然、友好地和用户聊天。");
+    if (!cli.system_prompt_disabled()) {
+        mm.push("system",
+            cli.get_system_prompt().empty()
+                ? "你是一个聊天助手，请自然、友好地和用户聊天。"
+                : cli.get_system_prompt()
+        );
+    }
     mm.push("user", "你好！介绍一下你自己。");
 
     info_dump(std::cout, cli, cfg, cfg.max_seq_len);

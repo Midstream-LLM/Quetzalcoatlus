@@ -56,6 +56,8 @@ void cli::help(std::ostream& out) const {
     out << "  -p, --perf                        "
         << "| enable performance debug mode" << std::endl;
     out << "Parameters:" << std::endl;
+    out << "  -s, --system-prompt <string>      "
+        << "| set system prompt (default: model default setting)" << std::endl;
     out << "      --top-k <int>                 "
         << "| set top-k (default: 20)" << std::endl;
     out << "      --top-p <float>               "
@@ -132,6 +134,10 @@ cli::cli(int argc, const char** argv) {
             show_debug_info = true;
         } else if (streq(argv[i], "--disable-system-prompt")) {
             disable_system_prompt = true;
+        } else if (streq(argv[i], "-s") || streq(argv[i], "--system-prompt")) {
+            require_value(i, argc, argv[i]);
+            system_prompt = argv[i + 1];
+            i++;
         } else if (streq(argv[i], "--top-k")) {
             require_value(i, argc, argv[i]);
             int res = parse_int(argv[i], argv[i + 1]);

@@ -55,7 +55,11 @@ void chat_mode(const quetzal::util::cli& cli) {
 
     util::message_manager mm(tokenizer);
     if (!cli.system_prompt_disabled()) {
-        mm.push("system", cfg.default_system_prompt);
+        mm.push("system",
+            cli.get_system_prompt().empty()
+                ? cfg.default_system_prompt
+                : cli.get_system_prompt()
+        );
     }
 
     utf8::utf8_stream_decoder decoder;
