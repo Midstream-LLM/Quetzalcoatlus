@@ -8,9 +8,65 @@
 #include "util/utf8.hpp"
 #include "util/ppm.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <string>
 
 namespace quetzal::mode {
+
+static void viridis_color(float t, unsigned char* rgb) {
+    static const unsigned char anchors[5][3] = {
+        { 68,   1,  84},
+        { 59,  82, 139},
+        { 33, 145, 140},
+        { 94, 201,  98},
+        {253, 231,  37}
+    };
+
+    t = std::clamp(t, 0.f, 1.f) * 4.f;
+    const std::size_t i = (std::min)(static_cast<std::size_t>(t), std::size_t(3));
+    const float u = t - static_cast<float>(i);
+    for (std::size_t c = 0; c < 3; ++c) {
+        const float v = anchors[i][c] * (1.f - u) + anchors[i + 1][c] * u;
+        rgb[c] = static_cast<unsigned char>(std::lround(v));
+    }
+}
+
+static void write_attn_ppm(const std::string& path,
+                           const tensor::tensor<float>& attn_mat,
+                           bool enable_debug_info,
+                           std::size_t scale = 6) {
+    QUETZAL_ASSERT(attn_mat.shape().size() == 3, "attn_mat.shape().size() != 3");
+
+    const std::size_t n_head = attn_mat.shape()[0];
+    const std::size_t seq_len = attn_mat.shape()[2];
+    const std::size_t height = seq_len * scale;
+    const std::size_t width = n_head * (seq_len * scale + 1) - 1;
+
+    util::ppm_writer pw(path, width, height, enable_debug_info);
+
+    const float lo = -std::log10(static_cast<float>(seq_len) * 1000.f);
+    for (std::size_t y = 0; y < height; ++y) {
+        const std::size_t query = y / scale;
+        for (std::size_t h = 0; h < n_head; ++h) {
+            for (std::size_t x = 0; x < seq_len * scale; ++x) {
+                const std::size_t key = x / scale;
+                if (key > query) {
+                    pw.write_pixel(90, 90, 90);
+                    continue;
+                }
+                const float p = attn_mat[h][query][key];
+                const float t = p > 0.f ? (std::log10(p) - lo) / (-lo) : 0.f;
+                unsigned char rgb[3];
+                viridis_color(t, rgb);
+                pw.write_pixel(rgb[0], rgb[1], rgb[2]);
+            }
+            if (h + 1 < n_head) {
+                pw.write_pixel(0, 0, 0);
+            }
+        }
+    }
+}
 
 void attn_mode(const util::cli& cli) {
     gpt::qgpt_bin_reader qbr(cli.get_model_file_path(), cli.enable_debug_info());
@@ -34,9 +90,7 @@ void attn_mode(const util::cli& cli) {
                               transformer.get_layernorm1_bias());
     auto attn_mat = attn.forward_attn(input);
     QUETZAL_ASSERT(attn_mat.shape().size() == 3, "attn_mat.shape().size() != 3");
-    util::ppm_writer pw("attn.ppm", attn_mat.shape()[1], attn_mat.shape()[0] * attn_mat.shape()[2]);
-    pw.add(attn_mat);
-    pw.write();
+    write_attn_ppm("attn.ppm", attn_mat, cli.enable_debug_info());
 
     std::uint32_t max_len = 0;
     for (auto i : indices) {
