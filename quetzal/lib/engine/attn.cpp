@@ -7,6 +7,7 @@
 #include "model/riverstrike/riverstrike.hpp"
 #include "util/utf8.hpp"
 #include "util/ppm.hpp"
+#include "util/fs.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -92,7 +93,13 @@ void attn_mode(const util::cli& cli) {
                               transformer.get_layernorm1_bias());
     auto attn_mat = attn.forward_attn(input);
     QUETZAL_ASSERT(attn_mat.shape().size() == 3, "attn_mat.shape().size() != 3");
-    write_attn_ppm("attn.ppm", attn_mat, cli.enable_debug_info());
+
+    std::string output_dir = "mode.attn";
+    if (!util::dir_exists(output_dir)) {
+        util::create_dir(output_dir);
+    }
+    output_dir += util::is_windows() ? "\\" : "/";
+    write_attn_ppm(output_dir + "attn.ppm", attn_mat, cli.enable_debug_info());
 
     std::uint32_t max_len = 0;
     for (auto i : indices) {

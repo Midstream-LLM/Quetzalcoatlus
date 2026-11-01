@@ -60,3 +60,5 @@ __pycache__/
 BelleGroup-train_2M_CN
 .gpt
 .quetzal
+mode.attn
+mode.expr

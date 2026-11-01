@@ -9,6 +9,7 @@
 #include "util/chat_message.hpp"
 #include "util/ppm.hpp"
 #include "util/utf8.hpp"
+#include "util/fs.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -102,12 +103,18 @@ void experiment_mode(const util::cli& cli) {
     std::size_t prompt_end = indices.size();
     std::vector<std::uint32_t> output_indices;
 
+    std::string output_dir = "mode.expr";
+    if (!util::dir_exists(output_dir)) {
+        util::create_dir(output_dir);
+    }
+    output_dir += util::is_windows() ? "\\" : "/";
+
     const auto im_end = br.get_vocab_index().at("<|im_end|>");
     std::uint32_t index = 0;
     std::uint32_t count = 0;
     while (indices.size() < 70) {
         util::ppm_writer pw(
-            "output." + std::to_string(count) + ".ppm",
+            output_dir + "output." + std::to_string(count) + ".ppm",
             cfg.d_model,
             (indices.size() + 1) * cfg.n_layer,
             cli.enable_debug_info()
@@ -115,7 +122,7 @@ void experiment_mode(const util::cli& cli) {
         auto logits = model.forward_write_ppm(indices, pw);
         pw.write();
         write_last_delta_ppm(
-            "last_delta." + std::to_string(count) + ".ppm",
+            output_dir + "last_delta." + std::to_string(count) + ".ppm",
             pw.bands(), 22, 6, 3,
             cli.enable_debug_info()
         );
