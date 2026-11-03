@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
 project(quetzal VERSION 0.1)
+include(CTest)
 
 message("CMAKE_HOST_SYSTEM_NAME: ${CMAKE_HOST_SYSTEM_NAME}")
 
@@ -66,13 +67,21 @@ endif()
 add_executable(deploy ${CMAKE_SOURCE_DIR}/deploy.cpp)
 target_link_libraries(deploy quetzal)
 # build test and tools
-add_executable(kv_cache_verify ${CMAKE_SOURCE_DIR}/test/kv_cache_verify.cpp)
-add_executable(softmax_causal_verify ${CMAKE_SOURCE_DIR}/test/softmax_causal_verify.cpp)
-add_executable(tensor_test ${CMAKE_SOURCE_DIR}/test/tensor_test.cpp)
 add_executable(thread_bench ${CMAKE_SOURCE_DIR}/test/thread_bench.cpp)
 add_executable(tokenizer ${CMAKE_SOURCE_DIR}/tokenizer.cpp)
-target_link_libraries(kv_cache_verify quetzal)
-target_link_libraries(softmax_causal_verify quetzal)
-target_link_libraries(tensor_test quetzal)
 target_link_libraries(thread_bench quetzal)
 target_link_libraries(tokenizer quetzal)
+
+if(BUILD_TESTING)
+    add_executable(kv_cache_verify ${CMAKE_SOURCE_DIR}/test/kv_cache_verify.cpp)
+    target_link_libraries(kv_cache_verify quetzal)
+    add_test(NAME kv_cache_verify COMMAND kv_cache_verify)
+
+    add_executable(softmax_causal_verify ${CMAKE_SOURCE_DIR}/test/softmax_causal_verify.cpp)
+    target_link_libraries(softmax_causal_verify quetzal)
+    add_test(NAME softmax_causal_verify COMMAND softmax_causal_verify)
+
+    add_executable(tensor_test ${CMAKE_SOURCE_DIR}/test/tensor_test.cpp)    
+    target_link_libraries(tensor_test quetzal)
+    add_test(NAME tensor_test COMMAND tensor_test)
+endif()

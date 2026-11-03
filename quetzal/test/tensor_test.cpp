@@ -9,6 +9,7 @@
 #include "tensor/fusion.hpp"
 #include "tensor/init.hpp"
 #include "tensor/rope.hpp"
+#include "util/testing.hpp"
 
 bool test_contiguous() {
     std::cout << "================== contiguous ==================" << std::endl;
@@ -375,14 +376,14 @@ bool test_multinomial() {
 }
 
 int main() {
-    test_dump();
+    CHECK(test_dump());
     test_transpose();
-    test_contiguous();
+    CHECK(test_contiguous());
 
     test_add();
     test_mul();
     test_silu();
-    test_silu_mul_fusion();
+    CHECK(test_silu_mul_fusion());
     test_sigmoid();
     test_softmax();
     test_layer_norm();
@@ -391,12 +392,12 @@ int main() {
 
     test_causal_mask();
     test_reshape();
-    test_embedding_gather();
+    CHECK(test_embedding_gather());
     test_rope();
 
     test_matmul_batch();
 
-    test_topk();
-    test_multinomial();
-    return 0;
+    CHECK(test_topk());
+    CHECK(test_multinomial());
+    return quetzal::test::report_final_result("tensor_test");
 }

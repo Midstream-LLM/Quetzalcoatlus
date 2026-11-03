@@ -2,6 +2,7 @@
 #include "tensor/init.hpp"
 #include "tensor/linalg.hpp"
 #include "tensor/rope.hpp"
+#include "util/testing.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -12,13 +13,15 @@ using namespace quetzal;
 
 namespace {
 
-float max_abs_diff(const tensor::tensor<float>& a, const float* b, std::size_t n,
+float max_abs_diff(const tensor::tensor<float>& a,
+                   const float* b,
+                   std::size_t n,
                    std::size_t& idx) {
     float m = 0.0f;
     idx = 0;
     for (std::size_t i = 0; i < n; ++i) {
         float d = std::fabs(a.data()[i] - b[i]);
-        if (d > m) {
+        if (!(d <= m)) {
             m = d;
             idx = i;
         }
@@ -42,7 +45,7 @@ tensor::tensor<float> row(const tensor::tensor<float>& full, std::size_t r) {
 
 } // namespace
 
-int main() {
+bool test_kv_cache() {
     const std::size_t d_model = 64, n_head = 4, d_k = d_model / n_head;
     const std::size_t max_seq_len = 64;
     const std::size_t N = 12; // prefill tokens
@@ -90,10 +93,10 @@ int main() {
         if (diff != 0.0f) ok = false;
     }
 
-    if (ok) {
-        std::cout << "\nKV-CACHE VERIFY: PASS (bit-identical to reference forward)" << std::endl;
-        return 0;
-    }
-    std::cout << "\nKV-CACHE VERIFY: FAIL" << std::endl;
-    return 1;
+    return ok;
+}
+
+int main() {
+    CHECK(test_kv_cache());
+    return test::report_final_result("kv_cache_verify");
 }

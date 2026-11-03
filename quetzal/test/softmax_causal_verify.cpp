@@ -2,6 +2,7 @@
 #include "tensor/linalg.hpp"
 #include "tensor/tensor.hpp"
 #include "tensor/fusion.hpp"
+#include "util/testing.hpp"
 
 #include <cmath>
 #include <cstring>
@@ -12,14 +13,15 @@ using namespace quetzal;
 
 namespace {
 
-float max_abs_diff(const tensor::tensor<float>& a, const tensor::tensor<float>& b,
+float max_abs_diff(const tensor::tensor<float>& a,
+                   const tensor::tensor<float>& b,
                    std::size_t& idx) {
     std::size_t n = a.total_size();
     float m = 0.0f;
     idx = 0;
     for (std::size_t i = 0; i < n; ++i) {
         float d = std::fabs(a.data()[i] - b.data()[i]);
-        if (d > m) {
+        if (!(d <= m)) {
             m = d;
             idx = i;
         }
@@ -29,7 +31,7 @@ float max_abs_diff(const tensor::tensor<float>& a, const tensor::tensor<float>& 
 
 } // namespace
 
-int main() {
+bool test_softmax_causal_fusion() {
     // (n_head, seq) shapes, incl. boundary seq=1
     const struct {
         std::size_t n_head;
@@ -69,11 +71,10 @@ int main() {
         if (d != 0.0f) ok = false;
     }
 
-    if (ok) {
-        std::cout << "\nSOFTMAX-CAUSAL VERIFY: PASS (bit-identical to apply_causal_mask+softmax)"
-                  << std::endl;
-        return 0;
-    }
-    std::cout << "\nSOFTMAX-CAUSAL VERIFY: FAIL" << std::endl;
-    return 1;
+    return ok;
+}
+
+int main() {
+    CHECK(test_softmax_causal_fusion());
+    return test::report_final_result("softmax_causal");
 }
