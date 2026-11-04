@@ -24,8 +24,8 @@ template<typename T>
 class view {
 private:
     friend class tensor<T>;
-    const std::vector<std::size_t>* shape_;
-    const std::vector<std::size_t>* strides_;
+    const std::vector<std::size_t>& shape_;
+    const std::vector<std::size_t>& strides_;
     const T* data_;
     std::size_t dim_;
     std::size_t offset_;
@@ -36,7 +36,7 @@ private:
          const T* data,
          std::size_t dim,
          std::size_t offset):
-        shape_(&shape), strides_(&strides),
+        shape_(shape), strides_(strides),
         data_(data), dim_(dim), offset_(offset) {}
 
     static void dump_indent(std::ostream& out, size_t indent) {
@@ -48,25 +48,25 @@ private:
 public:
 
     view operator[](std::size_t i) const {
-        QUETZAL_ASSERT(dim_ < shape_->size(), "[view] dim out of range");
-        QUETZAL_ASSERT(i < (*shape_)[dim_], "[view] index out of range");
+        QUETZAL_ASSERT(dim_ < shape_.size(), "[view] dim out of range");
+        QUETZAL_ASSERT(i < shape_[dim_], "[view] index out of range");
 
-        std::size_t offset = offset_ + (*strides_)[dim_] * i;
-        return view<T>(*shape_, *strides_, data_, dim_ + 1, offset);
+        std::size_t offset = offset_ + strides_[dim_] * i;
+        return view<T>(shape_, strides_, data_, dim_ + 1, offset);
     }
 
     operator const T&() const {
-        QUETZAL_ASSERT(dim_ == shape_->size(), "[view] dim out of range");
+        QUETZAL_ASSERT(dim_ == shape_.size(), "[view] dim out of range");
         return data_[offset_];
     }
 
     void dump(std::ostream& out, size_t indent = 0) {
-        if (dim_ == shape_->size()) {
+        if (dim_ == shape_.size()) {
             out << data_[offset_];
             return;
         }
 
-        const bool not_last_dim = (shape_->size() > 1 && dim_ < shape_->size() - 1);
+        const bool not_last_dim = (shape_.size() > 1 && dim_ < shape_.size() - 1);
         dump_indent(out, indent);
         out << "[";
         if (not_last_dim) {
@@ -74,8 +74,8 @@ public:
         }
 
         bool dumped = false;
-        for (std::size_t i = 0; i < (*shape_)[dim_]; i++) {
-            if (i != (*shape_)[dim_] - 1 && i > 8) {
+        for (std::size_t i = 0; i < shape_[dim_]; i++) {
+            if (i != shape_[dim_] - 1 && i > 8) {
                 if (!dumped) {
                     if (not_last_dim) {
                         dump_indent(out, indent + 1);
@@ -86,7 +86,7 @@ public:
                 continue;
             }
             (*this)[i].dump(out, indent + 1);
-            if (i != (*shape_)[dim_] - 1) {
+            if (i != shape_[dim_] - 1) {
                 out << ", ";
             }
             if (not_last_dim) {

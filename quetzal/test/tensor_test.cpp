@@ -11,22 +11,13 @@
 #include "tensor/rope.hpp"
 #include "util/testing.hpp"
 
-bool test_contiguous() {
-    std::cout << "================== contiguous ==================" << std::endl;
+void test_contiguous() {
     quetzal::tensor::tensor<float> a({2, 3, 4});
     quetzal::tensor::debug_init(a);
-    if (a.transpose(0, 1).is_contiguous()) {
-        std::cout << "[contiguous] FAIL [a.transpose(0, 1).is_contiguous()]" << std::endl;
-        return false;
-    }
-    std::cout << "[contiguous] PASS [a.transpose(0, 1).is_contiguous()]" << std::endl;
-    
-    if (!a.transpose(0, 1).transpose(0, 1).is_contiguous()) {
-        std::cout << "[contiguous] FAIL [a.transpose(0, 1).transpose(0, 1).is_contiguous()]" << std::endl;
-        return false;
-    }
-    std::cout << "[contiguous] PASS [a.transpose(0, 1).transpose(0, 1).is_contiguous()]" << std::endl;
+    CHECK(!a.transpose(0, 1).is_contiguous());
+    CHECK(a.transpose(0, 1).transpose(0, 1).is_contiguous());
 
+    // TODO: test
     a.transpose(0, 1).dump_info(std::cout);
     a.transpose(0, 1).dump(std::cout);
     a.transpose(0, 1).contiguous().dump_info(std::cout);
@@ -41,12 +32,10 @@ bool test_contiguous() {
     a.transpose(1, 2).dump(std::cout);
     a.transpose(1, 2).contiguous().dump_info(std::cout);
     a.transpose(1, 2).contiguous().dump(std::cout);
-    return true;
 }
 
-bool test_dump() {
-    std::cout << "==================== dump =====================" << std::endl;
-    std::vector<std::size_t> shape = {2};
+void test_dump() {
+    std::vector<std::size_t> shape = {4};
     quetzal::tensor::tensor<float> a(shape);
     quetzal::tensor::debug_init(a);
 
@@ -54,18 +43,14 @@ bool test_dump() {
     a.dump(ss1);
 
     std::stringstream ss2;
-    ss2 << "[" << a[0] << ", " << a[1] << "]" << std::endl;
+    ss2 << "[" << a[0] << ", " << a[1] << ", "
+        << a[2] << ", " << a[3] << "]\n";
 
-    if (ss1.str() != ss2.str()) {
-        std::cout << "[dump] FAIL [ss1.str() != ss2.str()]" << std::endl;
-        return false;
-    }
-    std::cout << "[dump] PASS [ss1.str() == ss2.str()]" << std::endl;
-    return true;
+    CHECK(ss1.str() == ss2.str());
 }
 
 void test_transpose() {
-    std::cout << "================== transpose ==================" << std::endl;
+    // TODO: test
     quetzal::tensor::tensor<float> a({2, 3, 4});
     quetzal::tensor::debug_init(a);
     try {
@@ -101,18 +86,23 @@ void test_transpose() {
 }
 
 void test_add() {
-    std::cout << "===================== add =====================" << std::endl;
     quetzal::tensor::tensor<float> a({2, 3, 4});
     quetzal::tensor::debug_init(a, 10.0f);
     quetzal::tensor::tensor<float> b({2, 3, 4});
     quetzal::tensor::debug_init(b, 10.0f);
     quetzal::tensor::tensor<float> c = a + b;
-    c.dump_info(std::cout);
-    c.dump(std::cout);
+    
+    quetzal::tensor::tensor<float> d({2, 3, 4});
+    quetzal::tensor::debug_init(d, 5.0f);
+
+    for (std::size_t i = 0; i < c.total_size(); ++i) {
+        CHECK_NEAR(c.data()[i], a.data()[i] + b.data()[i], 0.f);
+        CHECK_NEAR(c.data()[i], d.data()[i], 0.f);
+    }
 }
 
 void test_mul() {
-    std::cout << "===================== mul =====================" << std::endl;
+    // TODO: test
     quetzal::tensor::tensor<float> a({2, 3, 4});
     quetzal::tensor::debug_init(a, 10.0f);
     quetzal::tensor::tensor<float> b({2, 3, 4});
@@ -376,9 +366,9 @@ bool test_multinomial() {
 }
 
 int main() {
-    CHECK(test_dump());
+    test_dump();
     test_transpose();
-    CHECK(test_contiguous());
+    test_contiguous();
 
     test_add();
     test_mul();

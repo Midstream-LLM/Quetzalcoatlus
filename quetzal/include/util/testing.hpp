@@ -33,7 +33,7 @@ inline int summary(const char* test_name) {
 
 #define CHECK_NEAR(a, b, eps) \
     do {                                                     \
-        ++quetzal::test::qztest_count;                       \
+        ++quetzal::test::qz_test_count;                      \
         double a_ = (a), b_ = (b), eps_ = (eps);             \
         if (!(std::fabs(a_ - b_) <= eps_)) {                 \
             quetzal::test::fail(__FILE__, __LINE__,          \
