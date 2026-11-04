@@ -1,10 +1,8 @@
 #include "engine/chat.hpp"
 #include "engine/utils.hpp"
-#include "engine/repetition_penalty.hpp"
+#include "engine/runtime.hpp"
 
 #include "tensor/linalg.hpp"
-#include "model/qgpt_bin_reader.hpp"
-#include "model/riverstrike/riverstrike.hpp"
 #include "util/chat_message.hpp"
 #include "util/utf8.hpp"
 #include "util/timestamp.hpp"
@@ -32,41 +30,25 @@ static std::mt19937_64 create_generator(int seed) {
 
 void chat_mode(const quetzal::util::cli& cli) {
     util::log_manager logger(cli.enable_debug_info());
+    runtime::runtime rt(cli);
+    auto& model = rt.get_model();
 
-    gpt::qgpt_bin_reader qbr(cli.get_model_file_path(), cli.enable_debug_info());
-    const auto& wm = qbr.get_weights_manager();
-    const auto& br = qbr.get_bin_reader();
-    bbpe::tokenizer tokenizer(br);
-    repetition_penalty rp(cli.get_repetition_penalty(),
-                          cli.get_frequency_penalty(),
-                          cli.get_presence_penalty());
-
-    const auto& cfg = qbr.get_model_config();
-    auto max_seq_len = cfg.max_seq_len;
-
-    std::optional<tensor::NTK_aware_scaling> rule;
-    if (cli.get_rope_scaling_factor() > 1.f) {
-        rule.emplace(tensor::NTK_aware_scaling(cli.get_rope_scaling_factor()));
-        max_seq_len *= cli.get_rope_scaling_factor();
-    }
-    gpt::riverstrike_jishui_v1 model(wm, cfg, rule ? &*rule : nullptr);
-    qbr.release_memory();
     std::mt19937_64 gen = create_generator(cli.get_random_seed());
 
-    util::message_manager mm(tokenizer);
+    util::message_manager mm(rt.get_tokenizer());
     if (!cli.system_prompt_disabled()) {
         mm.push("system",
             cli.get_system_prompt().empty()
-                ? cfg.default_system_prompt
+                ? rt.get_model_config().default_system_prompt
                 : cli.get_system_prompt()
         );
     }
 
     utf8::utf8_stream_decoder decoder;
 
-    info_dump(std::cout, cli, cfg, max_seq_len);
+    info_dump(std::cout, cli, rt.get_model_config(), rt.get_max_seq_len());
 
-    const auto im_end = br.get_vocab_index().at("<|im_end|>");
+    const auto im_end = rt.get_vocab_index("<|im_end|>");
     while (true) {
         std::string input;
         std::cout << ">>> " << std::flush;
@@ -88,14 +70,14 @@ void chat_mode(const quetzal::util::cli& cli) {
         mm.push("user", input);
 
         // reserve 256 token for reply
-        std::string prompt = mm.build(max_seq_len - 256, cli.enable_debug_info());
-        std::vector<std::uint32_t> indices = tokenizer.encode(prompt);
+        std::string prompt = mm.build(rt.get_max_seq_len() - 256, cli.enable_debug_info());
+        std::vector<std::uint32_t> indices = rt.get_tokenizer().encode(prompt);
         std::size_t index = indices.back();
         std::size_t prompt_end = indices.size();
         std::string output_content = "";
         bool prefill_executed = false;
 
-        if (indices.size() >= max_seq_len) {
+        if (indices.size() >= rt.get_max_seq_len()) {
             std::cout << "[Info] warning: too long prompt: " << indices.size() << "\n\n";
         }
 
@@ -104,7 +86,7 @@ void chat_mode(const quetzal::util::cli& cli) {
         ts.stamp();
 
         std::cout << "\n[Quetzal]\n";
-        while (indices.size() < max_seq_len) {
+        while (indices.size() < rt.get_max_seq_len()) {
             auto logits = prefill_executed ? model.decode(index) : model.prefill(indices);
             if (!prefill_executed) {
                 TTFT = ts.elapsed_micro_seconds().count() / 1000000.f;
@@ -112,7 +94,7 @@ void chat_mode(const quetzal::util::cli& cli) {
             }
             prefill_executed = true;
 
-            rp.apply(indices, logits, prompt_end);
+            rt.get_penalty_applier().apply(indices, logits, prompt_end);
             logits = logits / cli.get_temperature();
             tensor::apply_topk_mask(logits, cli.get_top_k());
             tensor::apply_topp_mask(logits, cli.get_top_p());
@@ -123,11 +105,11 @@ void chat_mode(const quetzal::util::cli& cli) {
             }
 
             indices.push_back(index);
-            auto token = decoder.feed(br.get_vocab()[index]);
+            auto token = decoder.feed(rt.get_vocab(index));
             output_content += token;
             std::cout << token << std::flush;
         }
-        if (indices.size() >= max_seq_len) {
+        if (indices.size() >= rt.get_max_seq_len()) {
             std::cout << "\n[Info] context out of range, truncated.\n";
         }
 
@@ -143,7 +125,7 @@ void chat_mode(const quetzal::util::cli& cli) {
         }
         std::cout << "decode: ";
         std::cout << (indices.size() - prompt_end) * 1.f / dur << " token/s, ";
-        std::cout << context_used * 100 / max_seq_len << "% used ("
+        std::cout << context_used * 100 / rt.get_max_seq_len() << "% used ("
                   << context_used << " tokens)\n";
     }
     if (!mm.empty()) {

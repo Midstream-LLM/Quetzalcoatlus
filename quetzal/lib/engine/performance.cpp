@@ -6,6 +6,7 @@
 #include "bbpe/tokenizer.hpp"
 #include "model/qgpt_bin_reader.hpp"
 #include "model/riverstrike/riverstrike.hpp"
+#include "engine/runtime.hpp"
 #include "util/chat_message.hpp"
 #include "util/perf_info.hpp"
 #include "util/timestamp.hpp"
@@ -16,21 +17,13 @@
 namespace quetzal::mode {
 
 void perf_mode(const util::cli& cli) {
-    std::cout << "[Info] performance mode\n";
-    gpt::qgpt_bin_reader qbr(cli.get_model_file_path(), cli.enable_debug_info());
-    const auto& wm = qbr.get_weights_manager();
-    const auto& br = qbr.get_bin_reader();
-    bbpe::tokenizer tokenizer(br);
-    repetition_penalty rp(cli.get_repetition_penalty(),
-                          cli.get_frequency_penalty(),
-                          cli.get_presence_penalty());
-
-    const auto& cfg = qbr.get_model_config();
-    gpt::riverstrike_jishui_v1 model(wm, cfg);
-    qbr.release_memory();
+    runtime::runtime rt(cli);
     std::mt19937_64 gen(42);
+    auto& model = rt.get_model();
 
-    util::message_manager mm(tokenizer);
+    std::cout << "[Info] performance mode\n";    
+
+    util::message_manager mm(rt.get_tokenizer());
     if (!cli.system_prompt_disabled()) {
         mm.push("system",
             cli.get_system_prompt().empty()
@@ -46,8 +39,8 @@ void perf_mode(const util::cli& cli) {
     mm.push("assistant", "今天晚上准备吃烤鸡。");
     mm.push("user", "那吃的是相当不错了");
 
-    std::string prompt = mm.build(cfg.max_seq_len);
-    std::vector<std::uint32_t> indices = tokenizer.encode(prompt);
+    std::string prompt = mm.build(rt.get_max_seq_len());
+    std::vector<std::uint32_t> indices = rt.get_tokenizer().encode(prompt);
     std::size_t prompt_end = indices.size();
     std::size_t index = indices.back();
     util::timestamp ts;
@@ -55,7 +48,7 @@ void perf_mode(const util::cli& cli) {
     {
         ts.stamp();
         auto logits = model.prefill(indices);
-        rp.apply(indices, logits, prompt_end);
+        rt.get_penalty_applier().apply(indices, logits, prompt_end);
         logits = logits / cli.get_temperature();
         tensor::apply_topk_mask(logits, cli.get_top_k());
         tensor::apply_topp_mask(logits, cli.get_top_p());
@@ -70,7 +63,7 @@ void perf_mode(const util::cli& cli) {
     for (int i = 0; i < 10; ++i) {
         ts.stamp();
         auto logits = model.decode(index);
-        rp.apply(indices, logits, prompt_end);
+        rt.get_penalty_applier().apply(indices, logits, prompt_end);
         logits = logits / cli.get_temperature();
         tensor::apply_topk_mask(logits, cli.get_top_k());
         tensor::apply_topp_mask(logits, cli.get_top_p());
@@ -81,7 +74,7 @@ void perf_mode(const util::cli& cli) {
                   << ts.elapsed_milli_seconds().count() << " ms\n";
     }
 
-    std::string file = cfg.model_name + "-" +
+    std::string file = rt.get_model_config().model_name + "-" +
                        util::format_time(std::time(nullptr)) + ".perf.txt";
     std::ofstream perf_file_output(file);
     // perf for 20 cycles
@@ -92,7 +85,7 @@ void perf_mode(const util::cli& cli) {
         auto logits = model.decode(index, &pi);
 
         ts.stamp();
-        rp.apply(indices, logits, prompt_end);
+        rt.get_penalty_applier().apply(indices, logits, prompt_end);
         logits = logits / cli.get_temperature();
         tensor::apply_topk_mask(logits, cli.get_top_k());
         tensor::apply_topp_mask(logits, cli.get_top_p());
@@ -104,7 +97,8 @@ void perf_mode(const util::cli& cli) {
         pi.dump(perf_file_output);
     }
     std::cout << "[Info] performance: written to " << file << "\n";
-    std::cout << "[Info] performance: reply \n" << tokenizer.decode(indices) << "\n";
+    std::cout << "[Info] performance: reply \n"
+              << rt.get_tokenizer().decode(indices) << "\n";
 }
 
 }

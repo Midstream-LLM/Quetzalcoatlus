@@ -41,6 +41,7 @@ add_library(quetzal STATIC
             ${CMAKE_SOURCE_DIR}/lib/engine/experiment.cpp
             ${CMAKE_SOURCE_DIR}/lib/engine/performance.cpp
             ${CMAKE_SOURCE_DIR}/lib/engine/repetition_penalty.cpp
+            ${CMAKE_SOURCE_DIR}/lib/engine/runtime.cpp
             ${CMAKE_SOURCE_DIR}/lib/engine/utils.cpp
             ${CMAKE_SOURCE_DIR}/lib/tensor/tensor.cpp
             ${CMAKE_SOURCE_DIR}/lib/thirdparty/wcwidth.cpp

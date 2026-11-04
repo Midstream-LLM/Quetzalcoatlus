@@ -2,8 +2,6 @@
 
 #include "tensor/tensor.hpp"
 
-#include <cstring>
-
 namespace quetzal::gpt {
 
 class mha_kv_cache {

@@ -6,7 +6,7 @@ namespace quetzal::mode {
 
 void repetition_penalty::apply(const std::vector<std::uint32_t>& indices,
                                tensor::tensor<float>& logits,
-                               std::size_t prompt_end) {
+                               std::size_t prompt_end) const {
     const bool multiplicative = repetition_penalty_ > 1.0f;
     const bool additive = presence_penalty_ != 0.f || frequency_penalty_ != 0.f;
     if ((!multiplicative && !additive) || indices.size() <= prompt_end) {

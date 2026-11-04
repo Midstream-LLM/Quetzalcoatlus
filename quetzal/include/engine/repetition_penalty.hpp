@@ -23,7 +23,7 @@ public:
 
     void apply(const std::vector<std::uint32_t>& indices,
                tensor::tensor<float>& logits,
-               std::size_t prompt_end);
+               std::size_t prompt_end) const;
 };
 
 }

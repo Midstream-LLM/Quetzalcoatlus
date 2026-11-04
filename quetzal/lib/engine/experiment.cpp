@@ -6,6 +6,7 @@
 #include "bbpe/tokenizer.hpp"
 #include "model/qgpt_bin_reader.hpp"
 #include "model/riverstrike/riverstrike.hpp"
+#include "engine/runtime.hpp"
 #include "util/chat_message.hpp"
 #include "util/ppm.hpp"
 #include "util/utf8.hpp"
@@ -73,20 +74,11 @@ static void write_last_delta_ppm(const std::string& path,
 }
 
 void experiment_mode(const util::cli& cli) {
-    gpt::qgpt_bin_reader qbr(cli.get_model_file_path(), cli.enable_debug_info());
-    const auto& wm = qbr.get_weights_manager();
-    const auto& br = qbr.get_bin_reader();
-    bbpe::tokenizer tokenizer(br);
-    repetition_penalty rp(cli.get_repetition_penalty(),
-                          cli.get_frequency_penalty(),
-                          cli.get_presence_penalty());
-
-    const auto& cfg = qbr.get_model_config();
-    gpt::riverstrike_jishui_v1 model(wm, cfg);
-    qbr.release_memory();
+    runtime::runtime rt(cli);
     std::mt19937_64 gen(42);
+    auto& model = rt.get_model();
 
-    util::message_manager mm(tokenizer);
+    util::message_manager mm(rt.get_tokenizer());
     if (!cli.system_prompt_disabled()) {
         mm.push("system",
             cli.get_system_prompt().empty()
@@ -96,10 +88,10 @@ void experiment_mode(const util::cli& cli) {
     }
     mm.push("user", "你好！介绍一下你自己。");
 
-    info_dump(std::cout, cli, cfg, cfg.max_seq_len);
+    info_dump(std::cout, cli, rt.get_model_config(), rt.get_max_seq_len());
 
-    std::string prompt = mm.build(cfg.max_seq_len);
-    std::vector<std::uint32_t> indices = tokenizer.encode(prompt);
+    std::string prompt = mm.build(rt.get_max_seq_len());
+    std::vector<std::uint32_t> indices = rt.get_tokenizer().encode(prompt);
     std::size_t prompt_end = indices.size();
     std::vector<std::uint32_t> output_indices;
 
@@ -109,14 +101,14 @@ void experiment_mode(const util::cli& cli) {
     }
     output_dir += util::is_windows() ? "\\" : "/";
 
-    const auto im_end = br.get_vocab_index().at("<|im_end|>");
+    const auto im_end = rt.get_vocab_index("<|im_end|>");
     std::uint32_t index = 0;
     std::uint32_t count = 0;
     while (indices.size() < 70) {
         util::ppm_writer pw(
             output_dir + "output." + std::to_string(count) + ".ppm",
-            cfg.d_model,
-            (indices.size() + 1) * cfg.n_layer,
+            rt.get_model_config().d_model,
+            (indices.size() + 1) * rt.get_model_config().n_layer,
             cli.enable_debug_info()
         );
         auto logits = model.forward_write_ppm(indices, pw);
@@ -127,13 +119,13 @@ void experiment_mode(const util::cli& cli) {
             cli.enable_debug_info()
         );
 
-        rp.apply(indices, logits, prompt_end);
+        rt.get_penalty_applier().apply(indices, logits, prompt_end);
         logits = logits / cli.get_temperature();
         tensor::apply_topk_mask(logits, cli.get_top_k());
         tensor::apply_topp_mask(logits, cli.get_top_p());
         auto topk = tensor::softmax<float>(logits);
         index = tensor::multinomial<float>(topk, gen);
-        visualize_topk(br.get_vocab(), topk, cli.get_top_k(), index);
+        visualize_topk(rt.get_vocab_table(), topk, cli.get_top_k(), index);
         if (index == im_end) {
             break;
         }
@@ -142,7 +134,8 @@ void experiment_mode(const util::cli& cli) {
         ++count;
     }
     std::cout << std::endl;
-    std::cout << "[Quetzal] " << tokenizer.decode(output_indices) << std::endl;
+    std::cout << "[Quetzal] "
+              << rt.get_tokenizer().decode(output_indices) << std::endl;
 }
 
 }

@@ -2,9 +2,7 @@
 #include "engine/utils.hpp"
 
 #include "tensor/linalg.hpp"
-#include "bbpe/tokenizer.hpp"
-#include "model/qgpt_bin_reader.hpp"
-#include "model/riverstrike/riverstrike.hpp"
+#include "engine/runtime.hpp"
 #include "util/utf8.hpp"
 #include "util/ppm.hpp"
 #include "util/fs.hpp"
@@ -70,20 +68,14 @@ static void write_attn_ppm(const std::string& path,
 }
 
 void attn_mode(const util::cli& cli) {
-    gpt::qgpt_bin_reader qbr(cli.get_model_file_path(), cli.enable_debug_info());
-    const auto& wm = qbr.get_weights_manager();
-    const auto& br = qbr.get_bin_reader();
-    bbpe::tokenizer tokenizer(br);
-
-    const auto& cfg = qbr.get_model_config();
-    gpt::riverstrike_jishui_v1 model(wm, cfg);
-    qbr.release_memory();
+    runtime::runtime rt(cli);
     std::mt19937_64 gen(42);
+    auto& model = rt.get_model();
 
     const std::string prompt = cli.get_system_prompt().empty()
         ? "你好！今天中午你准备吃什么？"
         : cli.get_system_prompt();
-    auto indices = tokenizer.encode(prompt);
+    auto indices = rt.get_tokenizer().encode(prompt);
     auto input = tensor::embedding_gather(model.get_tok_emb(), indices);
 
     auto transformer = model.get_blocks().front();
@@ -103,13 +95,13 @@ void attn_mode(const util::cli& cli) {
 
     std::uint32_t max_len = 0;
     for (auto i : indices) {
-        max_len = (std::max)(max_len, utf8::utf8_str_wcwidth(br.get_vocab()[i]));
+        max_len = (std::max)(max_len, utf8::utf8_str_wcwidth(rt.get_vocab(i)));
     }
 
     for (std::size_t i = 0; i < attn_mat.shape()[0]; ++i) {
         std::cout << "head [" << i << "]:" << std::endl;
         for (std::size_t j = 0; j < attn_mat.shape()[1]; ++j) {
-            auto str = br.get_vocab()[indices[j]];
+            auto str = rt.get_vocab(indices[j]);
             auto len = utf8::utf8_str_wcwidth(str);
             for (std::size_t k = 0; k < max_len - len; ++k) {
                 str.push_back(' ');
