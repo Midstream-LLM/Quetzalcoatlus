@@ -399,5 +399,5 @@ int main() {
 
     CHECK(test_topk());
     CHECK(test_multinomial());
-    return quetzal::test::report_final_result("tensor_test");
+    return quetzal::test::summary("tensor_test");
 }

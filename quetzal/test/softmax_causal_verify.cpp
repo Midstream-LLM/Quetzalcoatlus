@@ -76,5 +76,5 @@ bool test_softmax_causal_fusion() {
 
 int main() {
     CHECK(test_softmax_causal_fusion());
-    return test::report_final_result("softmax_causal");
+    return test::summary("softmax_causal");
 }

@@ -98,5 +98,5 @@ bool test_kv_cache() {
 
 int main() {
     CHECK(test_kv_cache());
-    return test::report_final_result("kv_cache_verify");
+    return test::summary("kv_cache_verify");
 }

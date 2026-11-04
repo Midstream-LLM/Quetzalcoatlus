@@ -21,7 +21,7 @@ if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)|(amd64)")
         add_compile_options(-mavx2 -mfma)
     endif()
 endif()
-add_compile_options(-I ${CMAKE_SOURCE_DIR}/include)
+
 if (APPLE)
     add_compile_options(-Wsign-compare)
     add_compile_options(-mmacosx-version-min=15)
