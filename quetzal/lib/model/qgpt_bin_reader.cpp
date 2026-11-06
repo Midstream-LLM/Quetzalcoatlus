@@ -64,6 +64,8 @@ void weights_manager::read(std::ifstream& in, bool debug_mode) {
         auto parameters = total_parameters();
         std::cout << "[Debug] weights_manager: total parameters "
                   << parameters << " (" << parameters / 1000000 << " M)\n";
+        std::cout << "[Debug] weights_manager: parameters memory usage "
+                  << parameters * sizeof(float) / (1024 * 1024) << " MB\n";
     }
 }
 

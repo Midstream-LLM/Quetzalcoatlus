@@ -362,7 +362,12 @@ std::vector<std::uint32_t> tokenizer::encode(const std::string& text) const {
 std::string tokenizer::decode(const std::vector<std::uint32_t>& indices) const {
     std::string result;
     for (auto i : indices) {
-        result += vocab[i];
+        if (i >= vocab.size()) {
+            throw std::out_of_range("tokenizer: index out of range: " +
+                                    std::to_string(i) + " >= " +
+                                    std::to_string(vocab.size()));
+        }
+        result += vocab.at(i);
     }
     return result;
 }

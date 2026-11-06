@@ -77,6 +77,18 @@ void perf_mode(const util::cli& cli) {
     std::string file = rt.get_model_config().model_name + "-" +
                        util::format_time(std::time(nullptr)) + ".perf.txt";
     std::ofstream perf_file_output(file);
+    perf_file_output << "================================\n"
+                     << "name: " << rt.get_model_config().model_name << "\n"
+                     << "context: " << rt.get_max_seq_len() << "\n"
+                     << "d_model: " << rt.get_model_config().d_model << "\n"
+                     << "n_head: " << rt.get_model_config().n_head << "\n"
+                     << "n_layer: " << rt.get_model_config().n_layer << "\n"
+                     << "temperature: " << cli.get_temperature() << "\n"
+                     << "topk: " << cli.get_top_k() << "\n"
+                     << "topp: " << cli.get_top_p() << "\n"
+                     << "repetition penalty: " << cli.get_repetition_penalty() << "\n"
+                     << "frequency penalty: " << cli.get_frequency_penalty() << "\n"
+                     << "presence penalty: " << cli.get_presence_penalty() << "\n";
     // perf for 20 cycles
     for (int i = 0; i < 20; ++i) {
         std::cout << "[Info] performance: test " << i + 1 << " cycle(s)\n";

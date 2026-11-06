@@ -110,7 +110,9 @@ void chat_mode(const quetzal::util::cli& cli) {
             std::cout << token << std::flush;
         }
         if (indices.size() >= rt.get_max_seq_len()) {
-            std::cout << "\n[Info] context out of range, truncated.\n";
+            std::cout << "\n[Info] context out of range ("
+                      << indices.size() << " >= " << rt.get_max_seq_len()
+                      << "), truncated.\n";
         }
 
         mm.push("assistant", output_content);
