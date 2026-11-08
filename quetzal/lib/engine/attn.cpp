@@ -101,13 +101,13 @@ void attn_mode(const util::cli& cli) {
     for (std::size_t i = 0; i < attn_mat.shape()[0]; ++i) {
         std::cout << "head [" << i << "]:" << std::endl;
         for (std::size_t j = 0; j < attn_mat.shape()[1]; ++j) {
-            auto str = rt.get_vocab(indices[j]);
-            auto len = utf8::utf8_str_wcwidth(str);
-            for (std::size_t k = 0; k < max_len - len; ++k) {
-                str.push_back(' ');
-            }
+            const auto& str = rt.get_vocab(indices[j]);
+            const auto len = utf8::utf8_str_wcwidth(str);
             printf("\033[38;5;140m|%5u \033[0m\033[38;5;75m", indices[j]);
             utf8::print(std::cout, str);
+            for (std::size_t k = 0; k < max_len - len; ++k) {
+                std::cout << " ";
+            }
             printf("\033[0m ");
             if ((j + 1) % 4 == 0) {
                 std::cout << std::endl;
