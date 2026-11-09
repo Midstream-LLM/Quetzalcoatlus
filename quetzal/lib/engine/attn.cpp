@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <vector>
 
 namespace quetzal::mode {
 
@@ -32,52 +33,80 @@ static void viridis_color(float t, unsigned char* rgb) {
 }
 
 static void write_attn_ppm(const std::string& path,
-                           const tensor::tensor<float>& attn_mat,
+                           const std::vector<tensor::tensor<float>>& attn_mats,
                            bool enable_debug_info,
-                           std::size_t scale = 6) {
-    QUETZAL_ASSERT(attn_mat.shape().size() == 3, "attn_mat.shape().size() != 3");
+                           std::size_t scale = 4) {
+    for (const auto& attn_mat : attn_mats) {
+        QUETZAL_ASSERT(attn_mat.shape().size() == 3, "attn_mat.shape().size() != 3");
+    }
 
-    const std::size_t n_head = attn_mat.shape()[0];
-    const std::size_t seq_len = attn_mat.shape()[2];
+    const std::size_t n_head = attn_mats[0].shape()[0];
+    const std::size_t seq_len = attn_mats[0].shape()[2];
     const std::size_t height = seq_len * scale;
     const std::size_t width = n_head * (seq_len * scale + 1) - 1;
 
-    util::ppm_writer pw(path, width, height, enable_debug_info);
+    util::ppm_writer pw(path,
+                        width,
+                        height * attn_mats.size() + attn_mats.size(),
+                        enable_debug_info);
 
-    const float lo = -std::log10(static_cast<float>(seq_len) * 1000.f);
-    for (std::size_t y = 0; y < height; ++y) {
-        const std::size_t query = y / scale;
-        for (std::size_t h = 0; h < n_head; ++h) {
-            for (std::size_t x = 0; x < seq_len * scale; ++x) {
-                const std::size_t key = x / scale;
-                if (key > query) {
-                    pw.write_pixel(90, 90, 90);
-                    continue;
+    for (const auto& attn_mat : attn_mats) {
+        for (std::size_t x = 0; x < width; ++x) {
+            pw.write_pixel(0, 0, 0);
+        }
+        const float lo = -std::log10(static_cast<float>(seq_len) * 1000.f);
+        for (std::size_t y = 0; y < height; ++y) {
+            const std::size_t query = y / scale;
+            for (std::size_t h = 0; h < n_head; ++h) {
+                for (std::size_t x = 0; x < seq_len * scale; ++x) {
+                    const std::size_t key = x / scale;
+                    if (key > query) {
+                        pw.write_pixel(90, 90, 90);
+                        continue;
+                    }
+                    const float p = attn_mat[h][query][key];
+                    const float t = p > 0.f ? (std::log10(p) - lo) / (-lo) : 0.f;
+                    unsigned char rgb[3];
+                    viridis_color(t, rgb);
+                    pw.write_pixel(rgb[0], rgb[1], rgb[2]);
                 }
-                const float p = attn_mat[h][query][key];
-                const float t = p > 0.f ? (std::log10(p) - lo) / (-lo) : 0.f;
-                unsigned char rgb[3];
-                viridis_color(t, rgb);
-                pw.write_pixel(rgb[0], rgb[1], rgb[2]);
-            }
-            if (h + 1 < n_head) {
-                pw.write_pixel(0, 0, 0);
+                if (h + 1 < n_head) {
+                    pw.write_pixel(0, 0, 0);
+                }
             }
         }
     }
 }
 
-void attn_mode(const util::cli& cli) {
-    runtime::runtime rt(cli);
-    std::mt19937_64 gen(42);
-    auto& model = rt.get_model();
+static void generate_attn_for_each_layer(gpt::riverstrike_jishui_v1& model,
+                                         const std::vector<std::uint32_t>& indices,
+                                         bool enable_debug_info) {
+    std::string output_dir = "mode.attn";
+    if (!util::dir_exists(output_dir)) {
+        util::create_dir(output_dir);
+    }
+    output_dir += util::is_windows() ? "\\" : "/";
 
-    const std::string prompt = cli.get_system_prompt().empty()
-        ? "你好！今天中午你准备吃什么？"
-        : cli.get_system_prompt();
-    auto indices = rt.get_tokenizer().encode(prompt);
+    std::vector<tensor::tensor<float>> attn_mats;
+    auto h = tensor::embedding_gather(model.get_tok_emb(), indices);
+    int layer = 0;
+    for (const auto& block : model.get_blocks()) {
+        auto attn_mat = block.get_attention().forward_attn(
+            tensor::layernorm(h,
+                              block.get_layernorm1_weight(),
+                              block.get_layernorm1_bias())
+        );
+        attn_mats.push_back(attn_mat);
+        h = block.forward(h);
+        layer++;
+    }
+    write_attn_ppm(output_dir + "attn.ppm", attn_mats, enable_debug_info);
+}
+
+static void visualize_attn(runtime::runtime& rt,
+                           gpt::riverstrike_jishui_v1& model,
+                           const std::vector<std::uint32_t>& indices) {
     auto input = tensor::embedding_gather(model.get_tok_emb(), indices);
-
     auto transformer = model.get_blocks().front();
     auto attn = transformer.get_attention();
     input = tensor::layernorm(input,
@@ -85,13 +114,6 @@ void attn_mode(const util::cli& cli) {
                               transformer.get_layernorm1_bias());
     auto attn_mat = attn.forward_attn(input);
     QUETZAL_ASSERT(attn_mat.shape().size() == 3, "attn_mat.shape().size() != 3");
-
-    std::string output_dir = "mode.attn";
-    if (!util::dir_exists(output_dir)) {
-        util::create_dir(output_dir);
-    }
-    output_dir += util::is_windows() ? "\\" : "/";
-    write_attn_ppm(output_dir + "attn.ppm", attn_mat, cli.enable_debug_info());
 
     std::uint32_t max_len = 0;
     for (auto i : indices) {
@@ -140,6 +162,20 @@ void attn_mode(const util::cli& cli) {
         }
         std::cout << std::endl;
     }
+}
+
+void attn_mode(const util::cli& cli) {
+    runtime::runtime rt(cli);
+    std::mt19937_64 gen(42);
+    auto& model = rt.get_model();
+
+    const std::string prompt = cli.get_system_prompt().empty()
+        ? "你好！今天中午你准备吃什么？"
+        : cli.get_system_prompt();
+    auto indices = rt.get_tokenizer().encode(prompt);
+
+    generate_attn_for_each_layer(model, indices, cli.enable_debug_info());
+    visualize_attn(rt, model, indices);
 }
 
 }
