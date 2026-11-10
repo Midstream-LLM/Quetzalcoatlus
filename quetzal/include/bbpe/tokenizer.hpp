@@ -31,7 +31,7 @@ private:
 public:
     tokenizer(const std::vector<std::string>& special);
     tokenizer(const gpt::bin_reader& br);
-    void merge(const std::string& path, std::uint32_t max_vocab_size);
+    bool merge(const std::string& path, std::uint32_t max_vocab_size);
     void dump(std::ostream&) const;
     void dump_json(std::ostream&) const;
     std::vector<std::uint32_t> encode(const std::string& text) const;

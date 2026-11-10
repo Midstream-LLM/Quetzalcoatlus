@@ -118,11 +118,11 @@ tokenizer::tokenizer(const gpt::bin_reader& br) {
     special_vocab_size = special_vocab.size();
 }
 
-void tokenizer::merge(const std::string& path, std::uint32_t max_vocab_size) {
+bool tokenizer::merge(const std::string& path, std::uint32_t max_vocab_size) {
     std::ifstream ifs(path);
     if (!ifs) {
-        std::cerr << "cannot open " << path << std::endl;
-        return;
+        std::cerr << "[Info] tokenizer: cannot open <" << path << ">" << std::endl;
+        return false;
     }
 
     std::string text;
@@ -131,8 +131,8 @@ void tokenizer::merge(const std::string& path, std::uint32_t max_vocab_size) {
     auto src = encode(text);
     auto prev = src.size();
 
-    std::cout << "[INFO] init encoded: " << src.size() << "\n";
-    std::cout << "[INFO] text: ";
+    std::cout << "[Info] init encoded: " << src.size() << "\n";
+    std::cout << "[Info] text: ";
     if (text.length() / 1024.0 < 1.0) {
         std::cout << text.length() << "Byte\n";
     } else if (text.length() / 1024.0 / 1024.0 < 1.0) {
@@ -150,7 +150,7 @@ void tokenizer::merge(const std::string& path, std::uint32_t max_vocab_size) {
             auto end = std::chrono::high_resolution_clock::now();
             auto sec = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0;
             auto diff = prev - src.size();
-            std::cout << "[INFO] diff: " << diff;
+            std::cout << "[Info] diff: " << diff;
             std::cout << " (" << diff / static_cast<double>(src.size()) * 100.0 << "%)";
             std::cout << " src: " << src.size() << "(" << src.size() * sizeof(std::uint32_t) / 1024.0 / 1024.0 << "MB)";
             std::cout << " vocab: " << vocab.size();
@@ -164,9 +164,10 @@ void tokenizer::merge(const std::string& path, std::uint32_t max_vocab_size) {
         }
     }
 
-    std::cout << "[INFO] final encoded: " << src.size() << "\n";
-    std::cout << "[INFO] final vocab  : " << vocab.size() << "\n";
-    std::cout << "[INFO] final merge  : " << merge_pairs.size() << "\n";
+    std::cout << "[Info] final encoded: " << src.size() << "\n";
+    std::cout << "[Info] final vocab  : " << vocab.size() << "\n";
+    std::cout << "[Info] final merge  : " << merge_pairs.size() << "\n";
+    return true;
 }
 
 void tokenizer::dump(std::ostream& os) const {

@@ -34,8 +34,13 @@ void test(const quetzal::bbpe::tokenizer& bpe) {
 
 int main(int argc, const char* argv[]) {
     if (argc != 2) {
-        std::cerr << "Usage: bbpe <input text>\n";
-        return -1;
+        std::cerr << "Usage: " << argv[0] << " <input text>\n";
+        return 1;
+    }
+
+    if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
+        std::cout << "Usage: " << argv[0] << " <input text>\n";
+        return 0;
     }
 
     const std::vector<std::string> special = {
@@ -44,7 +49,9 @@ int main(int argc, const char* argv[]) {
     };
 
     quetzal::bbpe::tokenizer bpe(special);
-    bpe.merge(argv[1], 12800);
+    if (!bpe.merge(argv[1], 12800)) {
+        return 1;
+    }
 
     test(bpe);
 
