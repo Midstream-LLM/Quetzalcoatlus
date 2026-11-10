@@ -117,7 +117,8 @@ void chat_mode(const quetzal::util::cli& cli) {
 
         mm.push("assistant", output_content);
 
-        const auto dur = ts.elapsed_micro_seconds().count() / 1000000.f;
+        const auto dur_micro = ts.elapsed_micro_seconds().count();
+        const auto dur = dur_micro / 1000000.f;
         const auto context_used = mm.get_token_count();
         std::cout << "\n[Info] (perf) TTFT: ";
         if (TTFT > 1.f) {
@@ -125,8 +126,17 @@ void chat_mode(const quetzal::util::cli& cli) {
         } else {
             std::cout << TTFT * 1000.f << "ms, ";
         }
-        std::cout << "decode: ";
-        std::cout << (indices.size() - prompt_end) * 1.f / dur << " token/s, ";
+        const auto TPOT = dur_micro * 1.f / (indices.size() - prompt_end);
+        std::cout << "TPOT: ";
+        if (TPOT > 1000000.f) {
+            std::cout << TPOT / 1000000.f << "s/token";
+        } else if (TPOT > 1000.f) {
+            std::cout << TPOT / 1000.f << "ms/token";
+        } else {
+            std::cout << TPOT << "μs/token";
+        }
+        std::cout << " (";
+        std::cout << (indices.size() - prompt_end) * 1.f / dur << " token/s), ";
         std::cout << context_used * 100 / rt.get_max_seq_len() << "% used ("
                   << context_used << " tokens)\n";
     }

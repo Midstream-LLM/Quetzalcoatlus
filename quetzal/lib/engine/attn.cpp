@@ -89,7 +89,6 @@ static void generate_attn_for_each_layer(gpt::riverstrike_jishui_v1& model,
 
     std::vector<tensor::tensor<float>> attn_mats;
     auto h = tensor::embedding_gather(model.get_tok_emb(), indices);
-    int layer = 0;
     for (const auto& block : model.get_blocks()) {
         auto attn_mat = block.get_attention().forward_attn(
             tensor::layernorm(h,
@@ -98,7 +97,6 @@ static void generate_attn_for_each_layer(gpt::riverstrike_jishui_v1& model,
         );
         attn_mats.push_back(attn_mat);
         h = block.forward(h);
-        layer++;
     }
     write_attn_ppm(output_dir + "attn.ppm", attn_mats, enable_debug_info);
 }
