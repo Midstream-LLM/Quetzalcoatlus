@@ -28,7 +28,18 @@ static void aligned_free_wrapper(void* ptr) {
 #endif
 }
 
+static std::size_t alloc_count = 0;
+
+void clear_alloc_count() {
+    alloc_count = 0;
+}
+
+std::size_t get_alloc_count() {
+    return alloc_count;
+}
+
 void* default_allocator(size_t size) {
+    alloc_count++;
     return aligned_alloc_wrapper(size, alignof(std::max_align_t));
 }
 

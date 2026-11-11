@@ -103,6 +103,8 @@ public:
 using alloc_func = void* (*)(std::size_t);
 using free_func = void (*)(void*);
 
+void clear_alloc_count();
+std::size_t get_alloc_count();
 void *default_allocator(std::size_t size);
 void default_deallocator(void *ptr);
 
@@ -364,6 +366,19 @@ public:
         }
 
         return c;
+    }
+
+    tensor<T>& operator/=(T b) {
+        QUETZAL_ASSERT(this->is_contiguous(), "[div] tensor must be contiguous");
+        QUETZAL_ASSERT(b != T(0), "[div] divisor is zero");
+
+        std::size_t n = this->total_size();
+
+        for (std::size_t i = 0; i < n; ++i) {
+            this->data()[i] /= b;
+        }
+
+        return *this;
     }
 
 public:

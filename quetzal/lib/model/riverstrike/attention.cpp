@@ -17,8 +17,8 @@ multi_head_attention::forward_attn(const tensor::tensor<float>& x) const {
     auto Q = tensor::matmul_2d<float>(x, Wq_pre_transposed);
     auto K = tensor::matmul_2d<float>(x, Wk_pre_transposed);
 
-    auto seq_len = x.shape()[0];
-    auto d_k = d_model_ / n_head_;
+    const auto seq_len = x.shape()[0];
+    const auto d_k = d_model_ / n_head_;
 
     // (seq_len, d_model) -> (seq_len, n_head, d_k) -> (n_head, seq_len, d_k)
     Q = Q.reshape({seq_len, n_head_, d_k}).transpose(0, 1).contiguous();
@@ -28,7 +28,8 @@ multi_head_attention::forward_attn(const tensor::tensor<float>& x) const {
     rope_.apply(K);
 
     // (n_head, seq_len, d_k) @ (n_head, d_k, seq_len) -> (n_head, seq_len, seq_len)
-    auto scores = tensor::matmul_batch<float>(Q, K.transpose(1, 2)) / std::sqrt(d_k);
+    auto scores = tensor::matmul_batch<float>(Q, K.transpose(1, 2));
+    scores /= std::sqrt(d_k);
     return tensor::causal_mask_softmax_fusion<float>(scores);
 }
 
@@ -44,8 +45,8 @@ multi_head_attention::forward(const tensor::tensor<float>& x) const {
     auto K = tensor::matmul_2d<float>(x, Wk_pre_transposed);
     auto V = tensor::matmul_2d<float>(x, Wv_pre_transposed);
 
-    auto seq_len = x.shape()[0];
-    auto d_k = d_model_ / n_head_;
+    const auto seq_len = x.shape()[0];
+    const auto d_k = d_model_ / n_head_;
 
     // (seq_len, d_model) -> (seq_len, n_head, d_k) -> (n_head, seq_len, d_k)
     Q = Q.reshape({seq_len, n_head_, d_k}).transpose(0, 1).contiguous();
@@ -56,8 +57,8 @@ multi_head_attention::forward(const tensor::tensor<float>& x) const {
     rope_.apply(K);
 
     // (n_head, seq_len, d_k) @ (n_head, d_k, seq_len) -> (n_head, seq_len, seq_len)
-    auto scores = tensor::matmul_batch<float>(Q, K.transpose(1, 2).contiguous())
-                / std::sqrt(d_k);
+    auto scores = tensor::matmul_batch<float>(Q, K.transpose(1, 2).contiguous());
+    scores /= std::sqrt(d_k);
 
     auto attn = tensor::causal_mask_softmax_fusion<float>(scores);
     // (n_head, seq_len, seq_len) @ (n_head, seq_len, d_k) -> (n_head, seq_len, d_k)
@@ -84,9 +85,9 @@ multi_head_attention::prefill(const tensor::tensor<float>& x) {
     auto K = tensor::matmul_2d<float>(x, Wk_pre_transposed);
     auto V = tensor::matmul_2d<float>(x, Wv_pre_transposed);
 
-    auto seq_len = x.shape()[0];
+    const auto seq_len = x.shape()[0];
     QUETZAL_ASSERT(seq_len <= max_seq_len_, "[mha] sequence length out of range");
-    auto d_k = d_model_ / n_head_;
+    const auto d_k = d_model_ / n_head_;
 
     // (seq_len, d_model) -> (seq_len, n_head, d_k) -> (n_head, seq_len, d_k)
     Q = Q.reshape({seq_len, n_head_, d_k}).transpose(0, 1).contiguous();
@@ -99,8 +100,8 @@ multi_head_attention::prefill(const tensor::tensor<float>& x) {
     cache.prefill(K, V, seq_len);
 
     // (n_head, seq_len, d_k) @ (n_head, d_k, seq_len) -> (n_head, seq_len, seq_len)
-    auto scores = tensor::matmul_batch<float>(Q, K.transpose(1, 2).contiguous())
-                / std::sqrt(d_k);
+    auto scores = tensor::matmul_batch<float>(Q, K.transpose(1, 2).contiguous());
+    scores /= std::sqrt(d_k);
 
     auto attn = tensor::causal_mask_softmax_fusion<float>(scores);
     // (n_head, seq_len, seq_len) @ (n_head, seq_len, d_k) -> (n_head, seq_len, d_k)
@@ -132,8 +133,8 @@ multi_head_attention::decode(const tensor::tensor<float>& x,
     auto K = tensor::matmul_2d<float>(x, Wk_pre_transposed);
     auto V = tensor::matmul_2d<float>(x, Wv_pre_transposed);
 
-    auto seq_len = x.shape()[0];
-    auto d_k = d_model_ / n_head_;
+    const auto seq_len = x.shape()[0];
+    const auto d_k = d_model_ / n_head_;
 
     // (1, d_model) -> (1, n_head, d_k) -> (n_head, 1, d_k)
     Q = Q.reshape({seq_len, n_head_, d_k}).transpose(0, 1).contiguous();
@@ -156,8 +157,9 @@ multi_head_attention::decode(const tensor::tensor<float>& x,
 
     // (n_head, seq_len, d_k) @ (n_head, d_k, seq_len) -> (n_head, seq_len, seq_len)
     ts.stamp();
-    auto scores = tensor::matmul_batch<float>(Q, K.transpose(1, 2))
-                / std::sqrt(d_k);
+    auto scores = tensor::matmul_batch<float>(Q, K.transpose(1, 2));
+    scores /= std::sqrt(d_k);
+
     if (api) {
         api->QK_score_time = ts.elapsed_micro_seconds();
     }

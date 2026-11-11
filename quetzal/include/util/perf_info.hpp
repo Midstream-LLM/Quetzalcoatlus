@@ -27,6 +27,7 @@ struct perf_info {
     std::chrono::microseconds logits_calc_perf;
     std::chrono::microseconds token_choose_perf;
     float total_perf = 0.f;
+    std::size_t alloc_count = 0;
 
     void dump(std::ostream&) const;
 };

@@ -93,6 +93,7 @@ void perf_mode(const util::cli& cli) {
     for (int i = 0; i < 20; ++i) {
         std::cout << "[Info] performance: test " << i + 1 << " cycle(s)\n";
         util::perf_info pi;
+        tensor::clear_alloc_count();
         pi.indices_length = indices.size();
         auto logits = model.decode(index, &pi);
 
@@ -106,6 +107,7 @@ void perf_mode(const util::cli& cli) {
         pi.token_choose_perf = ts.elapsed_micro_seconds();
         indices.push_back(index);
 
+        pi.alloc_count = tensor::get_alloc_count();
         pi.dump(perf_file_output);
     }
     std::cout << "[Info] performance: written to " << file << "\n";

@@ -24,6 +24,7 @@ void perf_info::dump(std::ostream& os) const {
     os << " - Choose token: " << token_choose_perf.count() << " μs ";
     os << "(" << token_choose_perf.count() / 1000.f / total_perf << "%)\n";
     os << " - Total       : " << total_perf << " ms\n";
+    os << " - Alloc Count : " << alloc_count << "\n";
 }
 
 }
