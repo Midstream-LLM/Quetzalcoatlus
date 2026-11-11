@@ -28,6 +28,29 @@ static std::mt19937_64 create_generator(int seed) {
     return std::mt19937_64(seed);
 }
 
+static void dump_perf_info(const float TTFT,
+                           const std::size_t dur_micro,
+                           const std::size_t tokens_generated) {
+    const auto dur = dur_micro / 1000000.f;
+    std::cout << "\n[Info] TTFT: ";
+    if (TTFT > 1.f) {
+        std::cout << TTFT << " s, ";
+    } else {
+        std::cout << TTFT * 1000.f << " ms, ";
+    }
+    const auto TPOT = dur_micro * 1.f / tokens_generated;
+    std::cout << "TPOT: ";
+    if (TPOT > 1000000.f) {
+        std::cout << TPOT / 1000000.f << " s/token";
+    } else if (TPOT > 1000.f) {
+        std::cout << TPOT / 1000.f << " ms/token";
+    } else {
+        std::cout << TPOT << " μs/token";
+    }
+    std::cout << " (";
+    std::cout << tokens_generated * 1.f / dur << " token/s)\n";
+}
+
 void chat_mode(const quetzal::util::cli& cli) {
     util::log_manager logger(cli.enable_debug_info());
     runtime::runtime rt(cli);
@@ -117,27 +140,12 @@ void chat_mode(const quetzal::util::cli& cli) {
 
         mm.push("assistant", output_content);
 
-        const auto dur_micro = ts.elapsed_micro_seconds().count();
-        const auto dur = dur_micro / 1000000.f;
+        dump_perf_info(TTFT,
+                       ts.elapsed_micro_seconds().count(),
+                       indices.size() - prompt_end);
         const auto context_used = mm.get_token_count();
-        std::cout << "\n[Info] (perf) TTFT: ";
-        if (TTFT > 1.f) {
-            std::cout << TTFT << "s, ";
-        } else {
-            std::cout << TTFT * 1000.f << "ms, ";
-        }
-        const auto TPOT = dur_micro * 1.f / (indices.size() - prompt_end);
-        std::cout << "TPOT: ";
-        if (TPOT > 1000000.f) {
-            std::cout << TPOT / 1000000.f << "s/token";
-        } else if (TPOT > 1000.f) {
-            std::cout << TPOT / 1000.f << "ms/token";
-        } else {
-            std::cout << TPOT << "μs/token";
-        }
-        std::cout << " (";
-        std::cout << (indices.size() - prompt_end) * 1.f / dur << " token/s), ";
-        std::cout << context_used * 100 / rt.get_max_seq_len() << "% used ("
+        std::cout << "[Info] context usage: "
+                  << context_used * 100 / rt.get_max_seq_len() << "% ("
                   << context_used << " tokens)\n";
     }
     if (!mm.empty()) {

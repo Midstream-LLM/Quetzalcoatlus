@@ -64,14 +64,16 @@ else()
     message(STATUS "OpenMP not found")
 endif()
 
-# build deploy
+# build inference engine
 add_executable(deploy ${CMAKE_SOURCE_DIR}/deploy.cpp)
 target_link_libraries(deploy quetzal)
-# build test and tools
-add_executable(thread_bench ${CMAKE_SOURCE_DIR}/test/thread_bench.cpp)
-add_executable(tokenizer ${CMAKE_SOURCE_DIR}/tokenizer.cpp)
+# build tools
+add_executable(thread_bench ${CMAKE_SOURCE_DIR}/tool/thread_bench.cpp)
 target_link_libraries(thread_bench quetzal)
+add_executable(tokenizer ${CMAKE_SOURCE_DIR}/tokenizer.cpp)
 target_link_libraries(tokenizer quetzal)
+add_executable(extract_vocab_from_bin ${CMAKE_SOURCE_DIR}/tool/extract_vocab_from_bin.cpp)
+target_link_libraries(extract_vocab_from_bin quetzal)
 
 if(BUILD_TESTING)
     add_executable(kv_cache_verify ${CMAKE_SOURCE_DIR}/test/kv_cache_verify.cpp)
